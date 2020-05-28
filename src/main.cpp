@@ -208,6 +208,8 @@ int main() {
               for( int i = 1; i < 50 - prevSize; i++ ) {
                 // if car too close to front first try changing lanes if there is space
                 if (tooCloseFront){
+                  // first slow down!
+                  currVel -= 0.224; // acc = 5m/s^2
                   // check for cars on the left lane, & switch to that lane
                   // provided ego-car is not on left-most lane
                   if (lane>0 && !carOnLeft) {
@@ -219,10 +221,10 @@ int main() {
                     lane += 1;
                   } else {
                     // if changing lanes is not possible, slow down!
-                    currVel -= 0.224; // acc = 10ms2 -0.448
+                    // currVel -= 0.224; // acc =  5m/s^2
                   }
                 } else if  (currVel < 49) { // speed up to speed limit if free
-                  currVel += 0.224; // acc = 10ms2 -0.448
+                  currVel += 0.224; // acc = 5m/s^2
                 }
 
                 double N = target_dist/(0.02*currVel/2.24);
