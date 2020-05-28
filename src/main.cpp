@@ -116,20 +116,22 @@ int main() {
               bool tooCloseFront = false;
               bool carOnLeft = false;
               bool carOnRight = false;
+              double frontCarSpeed = currVel;
 
               // check for each car i present in sensor fusion data
               for (int i=0; i<sensor_fusion.size(); i++){
                 float d = sensor_fusion[i][6];
                 if (d > (4*lane) && d < (4 + 4*lane) ){
-                  tooCloseFront =  tooCloseFront || getTooClose(sensor_fusion[i], car_s, prevSize);
+                  tooCloseFront =  tooCloseFront || getTooClose(sensor_fusion[i], car_s, prevSize, 0);
+                  if (tooCloseFront) {frontCarSpeed = getSpeed(sensor_fusion[i]);}
                 }
                 // check left lane
                 if (lane !=0 && d > (4*lane -4) && d < (4*lane) ){
-                  carOnLeft =  carOnLeft || getTooClose(sensor_fusion[i], car_s, prevSize);
+                  carOnLeft =  carOnLeft || getTooClose(sensor_fusion[i], car_s, prevSize, 10);
                 }
                 // check right lane
                 if (lane !=2 && d > (4*lane+4) && d < (4*lane+8) ){
-                  carOnRight = carOnRight || getTooClose(sensor_fusion[i], car_s, prevSize);
+                  carOnRight = carOnRight || getTooClose(sensor_fusion[i], car_s, prevSize, 10);
                 }
               }
 
@@ -144,8 +146,8 @@ int main() {
               double refX = car_x;
               double refY = car_y;
 
-              int numWPBehindSpline = 4;
-              int numWPAheadSpline = 4;
+              int numWPBehindSpline = 3;
+              int numWPAheadSpline = 3;
 
               // if prevSize is almost empty, use car as startRef and
               // extrapolate 1 waypoint into the past
@@ -208,8 +210,12 @@ int main() {
               for( int i = 1; i < 50 - prevSize; i++ ) {
                 // if car too close to front first try changing lanes if there is space
                 if (tooCloseFront){
-                  // first slow down!
-                  currVel -= 0.224; // acc = 5m/s^2
+                  // only slow down until speed of front car!
+                  if (currVel > frontCarSpeed) {
+                    // since v^2 = u^2 + 2*a*s, calculate ideal accel
+                    double acc = (currVel*currVel - frontCarSpeed*frontCarSpeed)*(0.44704*0.44704)/(60*11.2); // convert from mph to m/s
+                    currVel -= std::min(acc,0.112) ; // cap acceleration to 2.5m/s^2
+                  }
                   // check for cars on the left lane, & switch to that lane
                   // provided ego-car is not on left-most lane
                   if (lane>0 && !carOnLeft) {
@@ -219,12 +225,12 @@ int main() {
                   // to that lane provided ego-car is not on right-most lane
                   else if (lane <2 && !carOnRight){
                     lane += 1;
-                  } else {
+                  } //else {
                     // if changing lanes is not possible, slow down!
                     // currVel -= 0.224; // acc =  5m/s^2
-                  }
+                  // }
                 } else if  (currVel < 49) { // speed up to speed limit if free
-                  currVel += 0.224; // acc = 5m/s^2
+                  currVel += 0.112; // acc = 2.5m/s^2
                 }
 
                 double N = target_dist/(0.02*currVel/2.24);

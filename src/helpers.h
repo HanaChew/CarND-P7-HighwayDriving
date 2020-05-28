@@ -154,22 +154,28 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s,
   return {x,y};
 }
 
-// flag if car found in sensor_fusion data is within region of interest
-bool getTooClose(vector<double> sensor_fusion, double car_s, int prevSize) {
-
+double getSpeed(vector<double> sensor_fusion){
   double vx = sensor_fusion[3];
   double vy = sensor_fusion[4];
-  double otherCarSpeed = sqrt(vx*vx+vy*vy);
+  return sqrt(vx*vx+vy*vy);
+}
+
+// flag if car found in sensor_fusion data is within region of interest
+bool getTooClose(vector<double> sensor_fusion, double car_s, int prevSize, int backspace=10) {
+
+  double otherCarSpeed = getSpeed(sensor_fusion);
   double otherCarS = sensor_fusion[5];
 
   // new s position one timestep in future
   otherCarS += prevSize*0.02*otherCarSpeed;
 
-  // is it within 30m ahead or 10m behind in the next timestep in the future?
-  if ( (otherCarS > (car_s-6)) && (otherCarS < (car_s + 30)) ){
+  // is it within 30m ahead for same lane
+  // or 30m ahead plus 10m behind in the next next lanes?
+  if ( (otherCarS > (car_s-backspace)) && (otherCarS < (car_s + 30)) ){
     return true;
   }
   return false;
 }
+
 
 #endif  // HELPERS_H
