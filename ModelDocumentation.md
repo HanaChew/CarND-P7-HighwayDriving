@@ -1,137 +1,44 @@
 # CarND-Path-Planning-Project
----
-### Goals
-In this project the goal is to safely navigate around a virtual highway with other traffic that is driving +-10 MPH of the 50 MPH speed limit.
 
-The car's localization and sensor fusion data is provided and there is also a sparse map list of waypoints around the highway.
-* Drives 4.32 miles without incident - completes one loop (6946m) - 5 mins
+## Goals
+In this project the goal is to safely navigate around a virtual highway with other traffic that is driving +-10 MPH of the 50 MPH speed limit, and meet the following criteria:
+* Drives 4.32 miles without incident - completes one loop (6946m)
 * Drives close to or under the 50MPH speed limit
 * Max acceleration (10 m/s^2) and max jerk (10 m/s^3)
 * No collisions
 * Stays in lane except when changing lanes (max 3 seconds)
 * Smooth lane changes when required
 
-#### The map of the highway is in data/highway_map.txt
-Each waypoint in the list contains  [x,y,s,dx,dy] values. x and y are the waypoint's map coordinate position, the s value is the distance along the road to get to that waypoint in meters, the dx and dy values define the unit normal vector pointing outward of the highway loop.
+The car's localization and sensor fusion data is provided and there is also a sparse map list of waypoints around the highway.
 
-The highway's waypoints loop around so the frenet s value, distance along the road, goes from 0 to 6945.554.
-
-
-Here is the data provided from the Simulator to the C++ Program
-
-#### Main car's localization Data (No Noise)
-
-["x"] The car's x position in map coordinates
-
-["y"] The car's y position in map coordinates
-
-["s"] The car's s position in frenet coordinates
-
-["d"] The car's d position in frenet coordinates
-
-["yaw"] The car's yaw angle in the map
-
-["speed"] The car's speed in MPH
-
-#### Previous path data given to the Planner
-
-//Note: Return the previous list but with processed points removed, can be a nice tool to show how far along
-the path has processed since last time.
-
-["previous_path_x"] The previous list of x points previously given to the simulator
-
-["previous_path_y"] The previous list of y points previously given to the simulator
-
-#### Previous path's end s and d values
-
-["end_path_s"] The previous list's last point's frenet s value
-
-["end_path_d"] The previous list's last point's frenet d value
-
-#### Sensor Fusion Data, a list of all other car's attributes on the same side of the road. (No Noise)
-
-["sensor_fusion"] A 2d vector of cars and then that car's [car's unique ID, car's x position in map coordinates, car's y position in map coordinates, car's x velocity in m/s, car's y velocity in m/s, car's s position in frenet coordinates, car's d position in frenet coordinates.
-
-## Details
-
-1. The car uses a perfect controller and will visit every (x,y) point it recieves in the list every .02 seconds. The units for the (x,y) points are in meters and the spacing of the points determines the speed of the car. The vector going from a point to the next point in the list dictates the angle of the car. Acceleration both in the tangential and normal directions is measured along with the jerk, the rate of change of total Acceleration. The (x,y) point paths that the planner recieves should not have a total acceleration that goes over 10 m/s^2, also the jerk should not go over 50 m/s^3. (NOTE: As this is BETA, these requirements might change. Also currently jerk is over a .02 second interval, it would probably be better to average total acceleration over 1 second and measure jerk from that.
-
-2. There will be some latency between the simulator running and the path planner returning a path, with optimized code usually its not very long maybe just 1-3 time steps. During this delay the simulator will continue using points that it was last given, because of this its a good idea to store the last points you have used so you can have a smooth transition. previous_path_x, and previous_path_y can be helpful for this transition since they show the last points given to the simulator controller with the processed points already removed. You would either return a path that extends this previous path or make sure to create a new path that has a smooth transition with this last path.
-
-## Tips
-
-A really helpful resource for doing this project and creating smooth trajectories was using http://kluge.in-chemnitz.de/opensource/spline/, the spline function is in a single hearder file is really easy to use.
+This document sets out the process of developing the model and the current results and state of the project.
 
 ---
 
-## Dependencies
+## Getting smooth trajectories
+By making use of the suggested [spline tool](https://kluge.in-chemnitz.de/opensource/spline/) with the `spline.h` function, a subset of the sparse waypoints (in the current  solution, 3 ahead and 3 behind the current car position) are used to generate smooth splines, which are then able to create a denser grid of closer sub-waypoints for the car to follow. The initial speed limit is set to 49.5 in order to see if the car would behave as planned.
 
-* cmake >= 3.5
-  * All OSes: [click here for installation instructions](https://cmake.org/install/)
-* make >= 4.1
-  * Linux: make is installed by default on most Linux distros
-  * Mac: [install Xcode command line tools to get make](https://developer.apple.com/xcode/features/)
-  * Windows: [Click here for installation instructions](http://gnuwin32.sourceforge.net/packages/make.htm)
-* gcc/g++ >= 5.4
-  * Linux: gcc / g++ is installed by default on most Linux distros
-  * Mac: same deal as make - [install Xcode command line tools]((https://developer.apple.com/xcode/features/)
-  * Windows: recommend using [MinGW](http://www.mingw.org/)
-* [uWebSockets](https://github.com/uWebSockets/uWebSockets)
-  * Run either `install-mac.sh` or `install-ubuntu.sh`.
-  * If you install from source, checkout to commit `e94b6e1`, i.e.
-    ```
-    git clone https://github.com/uWebSockets/uWebSockets
-    cd uWebSockets
-    git checkout e94b6e1
-    ```
+## Define model behaviour
+The code implemented to obtain smooth trajectories in the previous step is successful in allowing the car to remain in its own lane regardless of what obstacles it may find in its way. The next step would be to determine what steps the car should take in order to remain at its optimum speed as close to the speed limit as possible.
+1. The `sensor_fusion` data is read in order to slow the car down by 5m/s^2 should it find another car within 30m in its path. Should the path be clear, the car should increase it's acceleration by 5m/s^2 until it arrives close to the speed limit (set at 49 m/s, line 232 of main.cpp).
+2. Once this is successfully implemented, the next step is to implement a lane change where possible. This is done by checking the left and right lanes for cars which may be up to 30m ahead (in the next time step, due to the delay) and also up to 10m behind the ego vehicle, in order to be extra sure collisions may be avoided. Left lane changes are checked first, followed by the right lane change.
 
-## Editor Settings
+![Initial Performance](performanceInit.png)
 
-We've purposefully kept editor configuration files out of this repo in order to
-keep it as simple and environment agnostic as possible. However, we recommend
-using the following settings:
+The initial performance was satisfactory, with the minimum requirements of the assignment being met - driving 4.32 miles without incident. But there was still an occasional collision, or the rare acceleration limit being reached specifically when changing lanes and it never reached 15 miles incident-free. So I wanted to see the effect that some minor tweaking would have on the model.
 
-* indent using spaces
-* set tab width to 2 spaces (keeps the matrices in source code aligned)
+## Modifications to the initial model
+1. Originally, the changing of lanes was made before slowing down, but this occasionally caused the maximum acceleration to be exceeded, so the algorithm was tweaked to slow the car down slightly before trying to change lanes.
 
-## Code Style
+2. The deceleration is smoothed to only slow down as a function of the current speed and the speed of the vehicle ahead - not with a constant deceleration - so as to reduce the rhythmic yoyo-ing between slowing down and speeding up when stuck in a situation when it is not possible for a change in lanes because of cars in neighbouring lanes as well.
 
-Please (do your best to) stick to [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
+3. The checking of vehicles in the left and right lane were extended from 30m ahead to 10m behind the current vehicle - this is to avoid the cases where a car would pull up alongside and suddenly speed up, causing a collision.
 
-## Project Instructions and Rubric
+## Performance
+The tweaked model successfully met all the goals as detailed in the first step, and managed to drive for a considerable amount of time (>30 miles and counting as I stopped the simulator after 40 minutes) switching lanes without any incidents - no collisions, nor exceeding the max acceleration and jerk set out, while driving close to the 50MPH speed limit whenever possible.
 
-Note: regardless of the changes you make, your project must be buildable using
-cmake and make!
+![Final Performance](performanceFinal.png)
 
+Next steps to implement would be to introduce cost functions rather than simple boolean logic for the lane changes in order to decide on the best trajectories (more than one lane if necessary) or the slowing down and speeding up of the ego vehicle according to lane speeds. And to pre-empt close-range lane changes from vehicles two lanes away, as this was one of the causes of the rare collisions that the current solution could not avoid.
 
-## Call for IDE Profiles Pull Requests
-
-Help your fellow students!
-
-We decided to create Makefiles with cmake to keep this project as platform
-agnostic as possible. Similarly, we omitted IDE profiles in order to ensure
-that students don't feel pressured to use one IDE or another.
-
-However! I'd love to help people get up and running with their IDEs of choice.
-If you've created a profile for an IDE that you think other students would
-appreciate, we'd love to have you add the requisite profile files and
-instructions to ide_profiles/. For example if you wanted to add a VS Code
-profile, you'd add:
-
-* /ide_profiles/vscode/.vscode
-* /ide_profiles/vscode/README.md
-
-The README should explain what the profile does, how to take advantage of it,
-and how to install it.
-
-Frankly, I've never been involved in a project with multiple IDE profiles
-before. I believe the best way to handle this would be to keep them out of the
-repo root to avoid clutter. My expectation is that most profiles will include
-instructions to copy files to a new location to get picked up by the IDE, but
-that's just a guess.
-
-One last note here: regardless of the IDE used, every submitted project must
-still be compilable with cmake and make./
-
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
+---
